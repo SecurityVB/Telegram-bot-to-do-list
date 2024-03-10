@@ -1,5 +1,5 @@
 # Telegram-bot-to-do-list
-Simple telegram bot for to-do list
+Crude telegram bot for to-do list, no protection against SQL injections.
 # How to use
 To begin, create a virtual environment in the folder of your choice ```python -m venv venv```
 After activating the environment, install the library ```pip install aiogram```
