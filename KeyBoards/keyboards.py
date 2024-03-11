@@ -13,7 +13,7 @@ kb.add(*buttons)
 
 integration_kb = types.InlineKeyboardMarkup()
 integration_button = [
-    types.KeyboardButton(text='Discord', url='https://discord.gg/MaMR22zDky')
+    types.KeyboardButton(text='Discord', url='Ссылка')
 ]
 integration_kb.add(*integration_button)
 
