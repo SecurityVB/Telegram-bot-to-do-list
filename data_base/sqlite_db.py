@@ -59,11 +59,11 @@ async def sql_add_proverka(message):
 
         del_msg = await message.answer('...', reply_markup = types.ReplyKeyboardRemove())
         await del_msg.delete()
-        await bot.send_message(message.chat.id, text = show_tasks, reply_markup = func_kb, parse_mode = types.ParseMode.HTML)
+        return await bot.send_message(message.chat.id, text = show_tasks, reply_markup = func_kb, parse_mode = types.ParseMode.HTML)
     else:
         del_msg = await message.answer('...', reply_markup = types.ReplyKeyboardRemove())
         await del_msg.delete()
-        await message.answer('У вас ещё нету задач. Добавьте их.', reply_markup = func_kb)
+        return await message.answer('У вас ещё нету задач. Добавьте их.', reply_markup = func_kb)
 
 
 async def sql_show_tasks(message):
@@ -93,9 +93,9 @@ async def sql_show_tasks(message):
                 task_done = i.replace(DB_SYMBOLS.DB_TASK_DONE, '')
                 show_tasks += f'<b>{tasks.index(i) + 1})</b> <s>{task_done}</s>\n'
 
-        await bot.send_message(message.chat.id, text = show_tasks, parse_mode = types.ParseMode.HTML)
+        return await bot.send_message(message.chat.id, text = show_tasks, parse_mode = types.ParseMode.HTML)
     else:
-        await message.answer('У вас ещё нету задач. Добавьте их.')
+        return await message.answer('У вас ещё нету задач. Добавьте их.')
 
 
 async def sql_add_task(message, add_task):
@@ -114,7 +114,7 @@ async def sql_add_task(message, add_task):
     base.execute('UPDATE ToDoList SET spisok = (?) WHERE user_id = (?)', (DB_TODOLIST, id_user))
     base.commit()
 
-    await message.answer('Задача успешно добавлена.')
+    return await message.answer('Задача успешно добавлена.')
 
 async def sql_del_task(message, number):
     global DB_SYMBOLS
@@ -139,7 +139,11 @@ async def sql_del_task(message, number):
 
             while '' in number:
                     number.remove('')
-            
+
+            for i in number:
+                if i not in list("1234567890"):
+                    return await message.anwer('Ошибка.')
+
             if len(number) > 1:
                 number_standart = number
                 number = []
@@ -165,7 +169,7 @@ async def sql_del_task(message, number):
             base.commit()
                 
         except:
-            await message.answer('Ошибка.')
+            return await message.answer('Ошибка.')
 
 
 
@@ -187,6 +191,10 @@ async def sql_done_task(message, number):
 
         while '' in number:
             number.remove('')
+
+        for i in number:
+            if i not in list("1234567890"):
+                return await message.anwer('Ошибка.')
             
         if len(number) > 1:
             number_standart = number
@@ -222,7 +230,7 @@ async def sql_done_task(message, number):
 
 
     except:
-        await message.answer('Ошибка.')
+        return await message.answer('Ошибка.')
 
 
 
@@ -232,7 +240,7 @@ async def completed_tasks(message):
     completed_tasks_db = cur.execute('SELECT completed_tasks FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
     for completed_tasks in completed_tasks_db:
         if completed_tasks != None:
-            await message.answer(f'Всего выполненных задач: {completed_tasks}')
+            return await message.answer(f'Всего выполненных задач: {completed_tasks}')
     
     
 
