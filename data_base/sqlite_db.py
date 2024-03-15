@@ -140,9 +140,11 @@ async def sql_del_task(message, number):
             while '' in number:
                     number.remove('')
 
-            for i in number:
-                if i not in list("1234567890"):
-                    return await message.anwer('Ошибка.')
+            for num in number:
+                if num not in list("1234567890"):
+                    for i in num:
+                        if i not in list("1234567890"):
+                            return await message.anwer('Ошибка.')
 
             if len(number) > 1:
                 number_standart = number
@@ -192,9 +194,11 @@ async def sql_done_task(message, number):
         while '' in number:
             number.remove('')
 
-        for i in number:
-            if i not in list("1234567890"):
-                return await message.anwer('Ошибка.')
+        for num in number:
+            if num not in list("1234567890"):
+                for i in num:
+                    if i not in list("1234567890"):
+                        return await message.anwer('Ошибка.')
             
         if len(number) > 1:
             number_standart = number
