@@ -21,14 +21,12 @@ async def button_handler_list(message: types.Message):
 
 #@dp.message_handler(filters.Text(equals='Статистика'))
 async def button_handler_stat(message: types.Message):
-    await completed_tasks(message)
-
+    await sql_statistics_tasks(message)
 
 
 @dp.message_handler(filters.Text(equals='Показать задачи'))
 async def button_handler_ShowTask(message: types.Message):
     await sql_show_tasks(message)
-
 
 
 #@dp.message_handler(filters.Text(equals='Добавить задачу'), state = None)

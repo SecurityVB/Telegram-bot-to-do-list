@@ -9,7 +9,6 @@ class DB_SYMBOLS:
     DB_LIST_PROBEL = '-~*&*~-'
 
 
-
 def sql_start():
     global base, cur
 
@@ -18,7 +17,7 @@ def sql_start():
     if base:
         print('data base connected')
     
-    base.execute('CREATE TABLE IF NOT EXISTS ToDoList(user_id BINDING PRIMARY KEY, spisok TEXT, completed_tasks BINDING, register_date DATETIME)') 
+    base.execute('CREATE TABLE IF NOT EXISTS ToDoList(user_id BINDING PRIMARY KEY, register_date DATETIME, spisok TEXT, tasks BINDING, completed_tasks BINDING)') 
     base.commit()
 
 
@@ -59,11 +58,11 @@ async def sql_add_proverka(message):
 
         del_msg = await message.answer('...', reply_markup = types.ReplyKeyboardRemove())
         await del_msg.delete()
-        return await bot.send_message(message.chat.id, text = show_tasks, reply_markup = func_kb, parse_mode = types.ParseMode.HTML)
+        await bot.send_message(message.chat.id, text = show_tasks, reply_markup = func_kb, parse_mode = types.ParseMode.HTML)
     else:
         del_msg = await message.answer('...', reply_markup = types.ReplyKeyboardRemove())
         await del_msg.delete()
-        return await message.answer('У вас ещё нету задач. Добавьте их.', reply_markup = func_kb)
+        await message.answer('У вас ещё нету задач. Добавьте их.', reply_markup = func_kb)
 
 
 async def sql_show_tasks(message):
@@ -91,26 +90,41 @@ async def sql_show_tasks(message):
                 task_done = i.replace(DB_SYMBOLS.DB_TASK_DONE, '')
                 show_tasks += f'<b>{tasks.index(i) + 1})</b> <s>{task_done}</s>\n'
 
-        return await bot.send_message(message.chat.id, text = show_tasks, parse_mode = types.ParseMode.HTML)
+        await bot.send_message(message.chat.id, text = show_tasks, parse_mode = types.ParseMode.HTML)
     else:
-        return await message.answer('У вас ещё нету задач. Добавьте их.')
+        await message.answer('У вас ещё нету задач. Добавьте их.')
 
 
 async def sql_add_task(message, add_task):
     id_user = message.from_user.id
+    
+    if 'SELECT' not in add_task:
+        DB_TODOLIST = cur.execute('SELECT spisok FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
+        for i in DB_TODOLIST:
+            DB_TODOLIST = i
+        if DB_TODOLIST == None:
+            DB_TODOLIST = ''
 
-    DB_TODOLIST = cur.execute('SELECT spisok FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
-    for i in DB_TODOLIST:
-        DB_TODOLIST = i
-    if DB_TODOLIST == None:
-        DB_TODOLIST = ''
+        DB_TODOLIST += add_task + DB_SYMBOLS.DB_TASK_NOTDONE + DB_SYMBOLS.DB_LIST_PROBEL
 
-    DB_TODOLIST += add_task + DB_SYMBOLS.DB_TASK_NOTDONE + DB_SYMBOLS.DB_LIST_PROBEL
+        base.execute('UPDATE ToDoList SET spisok = (?) WHERE user_id = (?)', (DB_TODOLIST, id_user))
+        base.commit()
 
-    base.execute('UPDATE ToDoList SET spisok = (?) WHERE user_id = (?)', (DB_TODOLIST, id_user))
-    base.commit()
+        tasks_db = cur.execute('SELECT tasks FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
+        for tasks in tasks_db:
+            if tasks != None:
+                tasks += 1
+            else:
+                tasks = 1
+        
+        base.execute('UPDATE ToDoList SET tasks = (?) WHERE user_id = (?)', (tasks, id_user))
+        base.commit()
 
-    return await message.answer('Задача успешно добавлена.')
+        await message.answer('Задача успешно добавлена.')
+    else:
+        await message.answer('Задача не может содержать "SELECT"')
+
+    
 
 async def sql_del_task(message, number):
     id_user = message.from_user.id
@@ -165,7 +179,7 @@ async def sql_del_task(message, number):
             base.commit()
                 
         except:
-            return await message.answer('Ошибка.')
+            await message.answer('Ошибка.')
 
 
 
@@ -226,17 +240,25 @@ async def sql_done_task(message, number):
 
 
     except:
-        return await message.answer('Ошибка.')
+        await message.answer('Ошибка.')
 
 
 
-async def completed_tasks(message):
+async def sql_statistics_tasks(message):
     id_user = message.from_user.id
 
     completed_tasks_db = cur.execute('SELECT completed_tasks FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
     for completed_tasks in completed_tasks_db:
         if completed_tasks != None:
-            return await message.answer(f'Всего выполненных задач: {completed_tasks}')
-    
-    
+            completed_tasks = completed_tasks
 
+    tasks_db = cur.execute('SELECT tasks FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
+    for tasks in tasks_db:
+        if tasks != None:
+            tasks = tasks
+
+    try:
+        ratio = (completed_tasks / tasks) * 100
+        await message.answer(f"Всего выполненных задач: <b>{completed_tasks}</b>\nВсего было добавлено задач: <b>{tasks}</b>\nПродуктивность: <b>{ratio}%</b>", parse_mode = types.ParseMode.HTML)
+    except:
+        await message.answer(f"Всего выполненных задач: <b>{completed_tasks}</b>\nВсего было добавлено задач: <b>{tasks}</b>", parse_mode = types.ParseMode.HTML)
