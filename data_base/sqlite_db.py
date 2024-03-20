@@ -67,8 +67,6 @@ async def sql_add_proverka(message):
 
 
 async def sql_show_tasks(message):
-    global DB_SYMBOLS
-
     id_user = message.from_user.id
 
     DB_TODOLIST = cur.execute('SELECT spisok FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
@@ -99,8 +97,6 @@ async def sql_show_tasks(message):
 
 
 async def sql_add_task(message, add_task):
-    global DB_SYMBOLS
-
     id_user = message.from_user.id
 
     DB_TODOLIST = cur.execute('SELECT spisok FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
@@ -117,8 +113,6 @@ async def sql_add_task(message, add_task):
     return await message.answer('Задача успешно добавлена.')
 
 async def sql_del_task(message, number):
-    global DB_SYMBOLS
-
     id_user = message.from_user.id
 
     if number == 'all':
@@ -176,8 +170,6 @@ async def sql_del_task(message, number):
 
 
 async def sql_done_task(message, number):
-    global DB_SYMBOLS
-
     id_user = message.from_user.id
 
     try:
