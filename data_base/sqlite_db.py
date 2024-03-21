@@ -98,7 +98,7 @@ async def sql_show_tasks(message):
 async def sql_add_task(message, add_task):
     id_user = message.from_user.id
     
-    if 'SELECT' not in add_task:
+    if 'SELECT' not in add_task and 'src' not in add_task:
         DB_TODOLIST = cur.execute('SELECT spisok FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
         for i in DB_TODOLIST:
             DB_TODOLIST = i
