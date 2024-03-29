@@ -1,264 +1,204 @@
 import sqlite3 as sq
 from createbot import *
+from .hashing_task import *
+from .db_support_functons import *
 from KeyBoards.keyboards import *
 import datetime
 
-class DB_SYMBOLS:
-    DB_TASK_DONE = '-~*&1*~-'
-    DB_TASK_NOTDONE = '-~*&0*~-'
-    DB_LIST_PROBEL = '-~*&*~-'
 
 
 def sql_start():
     global base, cur
 
-    base = sq.connect('TABLE_TODOLIST.db')
+    base = sq.connect('DATE_BASE.db')
     cur = base.cursor()
     if base:
         print('data base connected')
-    
-    base.execute('CREATE TABLE IF NOT EXISTS ToDoList(user_id BINDING PRIMARY KEY, register_date DATETIME, spisok TEXT, tasks BINDING, completed_tasks BINDING)') 
+
+    base.execute('CREATE TABLE IF NOT EXISTS TableToDo(user_id BINDING PRIMARY KEY, register_date DATETIME, spisok TEXT, total_tasks BINDING, completed_tasks BINDING)')
     base.commit()
 
 
 async def sql_add_id(message):
     id_user = message.from_user.id
-    if (id_user,) not in cur.execute('SELECT user_id FROM ToDOList').fetchall():
-        base.execute('INSERT INTO ToDoList (user_id) VALUES (?)', (id_user,))
+    if (id_user,) not in cur.execute('SELECT user_id FROM TableToDo').fetchall():
+        base.execute('INSERT INTO TableToDo (user_id) VALUES (?)', (id_user,))
         base.commit()
         current_timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        base.execute('UPDATE ToDoList SET register_date = (?)', (current_timestamp,))
+        base.execute('UPDATE TableToDo SET register_date = (?)', (current_timestamp,))
         base.commit()
 
 
 async def sql_add_proverka(message):
     id_user = message.from_user.id
 
-    DB_TODOLIST = cur.execute('SELECT spisok FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
-    for i in DB_TODOLIST:
-        DB_TODOLIST = i
+    spisok_from_db = cur.execute('SELECT spisok FROM TableToDo WHERE user_id = (?)', (id_user,)).fetchone()
+    spisok_tasks = Processing_the_to_do_list(spisok_from_db)
 
-    if DB_TODOLIST != None:
+    if spisok_tasks: # Exists
+        show_spisok_tasks = Preparing_spisok_tasks_for_display(spisok_tasks)
 
-        tasks = DB_TODOLIST.split(DB_SYMBOLS.DB_LIST_PROBEL)
-        show_tasks = ''
-
-        while '' in tasks:
-            tasks.remove('')
-
-        for i in tasks:
-
-            if i != '' and DB_SYMBOLS.DB_TASK_NOTDONE in i:
-                task_notdone = i.replace(DB_SYMBOLS.DB_TASK_NOTDONE, '')
-                show_tasks += f'<b>{tasks.index(i) + 1})</b> {task_notdone}\n'
-
-            if i != '' and DB_SYMBOLS.DB_TASK_DONE in i:
-                task_done = i.replace(DB_SYMBOLS.DB_TASK_DONE, '')
-                show_tasks += f'<b>{tasks.index(i) + 1})</b> <s>{task_done}</s>\n'
-
-        del_msg = await message.answer('...', reply_markup = types.ReplyKeyboardRemove())
+        del_msg = await message.answer('...', reply_markup=types.ReplyKeyboardRemove())
         await del_msg.delete()
-        await bot.send_message(message.chat.id, text = show_tasks, reply_markup = func_kb, parse_mode = types.ParseMode.HTML)
-    else:
-        del_msg = await message.answer('...', reply_markup = types.ReplyKeyboardRemove())
-        await del_msg.delete()
-        await message.answer('У вас ещё нету задач. Добавьте их.', reply_markup = func_kb)
+        return await bot.send_message(message.chat.id, text=show_spisok_tasks, reply_markup=func_kb, parse_mode=types.ParseMode.HTML)
 
+    else: # Does not exist
+        del_msg = await message.answer('...', reply_markup=types.ReplyKeyboardRemove())
+        await del_msg.delete()
+        return await message.answer('У вас ещё нету задач. Добавьте их.', reply_markup=func_kb)
 
 async def sql_show_tasks(message):
     id_user = message.from_user.id
 
-    DB_TODOLIST = cur.execute('SELECT spisok FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
-    for i in DB_TODOLIST:
-        DB_TODOLIST = i
+    spisok_from_db = cur.execute('SELECT spisok FROM TableToDo WHERE user_id = (?)', (id_user,)).fetchone()
+    spisok_tasks = Processing_the_to_do_list(spisok_from_db)
 
-    if DB_TODOLIST != None:
-
-        tasks = DB_TODOLIST.split(DB_SYMBOLS.DB_LIST_PROBEL)
-        show_tasks = ''
-
-        while '' in tasks:
-            tasks.remove('')
-
-        for i in tasks:
-
-            if i != '' and DB_SYMBOLS.DB_TASK_NOTDONE in i:
-                task_notdone = i.replace(DB_SYMBOLS.DB_TASK_NOTDONE, '')
-                show_tasks += f'<b>{tasks.index(i) + 1})</b> {task_notdone}\n'
-
-            if i != '' and DB_SYMBOLS.DB_TASK_DONE in i:
-                task_done = i.replace(DB_SYMBOLS.DB_TASK_DONE, '')
-                show_tasks += f'<b>{tasks.index(i) + 1})</b> <s>{task_done}</s>\n'
-
-        await bot.send_message(message.chat.id, text = show_tasks, parse_mode = types.ParseMode.HTML)
-    else:
-        await message.answer('У вас ещё нету задач. Добавьте их.')
-
+    if spisok_tasks: # Exists
+        show_spisok_tasks = Preparing_spisok_tasks_for_display(spisok_tasks)
+        return await bot.send_message(message.chat.id, text=show_spisok_tasks, parse_mode=types.ParseMode.HTML)
+    else: # Does not exist
+        return await message.answer('У вас ещё нету задач. Добавьте их.')
 
 async def sql_add_task(message, add_task):
     id_user = message.from_user.id
-    
-    if 'SELECT' not in add_task and 'src' not in add_task:
-        DB_TODOLIST = cur.execute('SELECT spisok FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
-        for i in DB_TODOLIST:
-            DB_TODOLIST = i
-        if DB_TODOLIST == None:
-            DB_TODOLIST = ''
 
-        DB_TODOLIST += add_task + DB_SYMBOLS.DB_TASK_NOTDONE + DB_SYMBOLS.DB_LIST_PROBEL
+    add_task = hashing_(add_task, hasher)
 
-        base.execute('UPDATE ToDoList SET spisok = (?) WHERE user_id = (?)', (DB_TODOLIST, id_user))
-        base.commit()
+    spisok_tasks_from_db = cur.execute('SELECT spisok FROM TableToDo WHERE user_id = (?)', (id_user,)).fetchone()
+    spisok_tasks = Checking_for_emptiness(spisok_tasks_from_db)
 
-        tasks_db = cur.execute('SELECT tasks FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
-        for tasks in tasks_db:
-            if tasks != None:
-                tasks += 1
-            else:
-                tasks = 1
+    spisok_tasks += add_task + DbSymbols.db_task_not_done + DbSymbols.task_space
+
+    base.execute('UPDATE TableToDo SET spisok = (?) WHERE user_id = (?)', (spisok_tasks, id_user))
+    base.commit()
+
+    total_tasks_db = cur.execute('SELECT total_tasks FROM TableToDo WHERE user_id = (?)', (id_user,)).fetchone()
+    for total_tasks in total_tasks_db:
+        if total_tasks:
+            total_tasks += 1
+        else:
+            total_tasks = 1
         
-        base.execute('UPDATE ToDoList SET tasks = (?) WHERE user_id = (?)', (tasks, id_user))
-        base.commit()
+    base.execute('UPDATE TableToDo SET total_tasks = (?) WHERE user_id = (?)', (total_tasks, id_user))
+    base.commit()
 
-        await message.answer('Задача успешно добавлена.')
-    else:
-        await message.answer('Задача не может содержать "SELECT"')
+    await message.answer('Задача успешно добавлена.')
 
-    
 
 async def sql_del_task(message, number):
     id_user = message.from_user.id
 
     if number == 'all':
-        base.execute('UPDATE ToDoList SET spisok = (?) WHERE user_id = (?)', (None, id_user))
+        base.execute('UPDATE TableToDo SET spisok = (?) WHERE user_id = (?)', (None, id_user))
         base.commit()
 
     else:
+        number = number.split()
         try:
-            DB_TODOLIST = cur.execute('SELECT spisok FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
-            for i in DB_TODOLIST:
-                DB_TODOLIST = i
+            spisok_from_db = cur.execute('SELECT spisok FROM TableToDo WHERE user_id = (?)', (id_user,)).fetchone()
+            spisok_tasks = Processing_the_to_do_list(spisok_from_db)
 
-            DB_TODOLIST = DB_TODOLIST.split(DB_SYMBOLS.DB_LIST_PROBEL)
-            while '' in DB_TODOLIST:
-                DB_TODOLIST.remove('')
+            if checking_task_selector(number):
+                if len(number) > 1:
+                    number_standart = number
+                    number = []
 
-            number = number.split(' ')
+                    for i in number_standart:
+                        i = -((len(spisok_tasks) + 1) - int(i))
+                        number.append(i)
 
-            while '' in number:
-                    number.remove('')
+                    for index in number:
+                        try:
+                            spisok_tasks.pop(index)
+                        except:
+                            pass
+                else:
+                    for index in number:
+                        index = int(index) - 1
+                        spisok_tasks.pop(index)
 
-            for num in number:
-                if num not in list("1234567890"):
-                    for i in num:
-                        if i not in list("1234567890"):
-                            return await message.anwer('Ошибка.')
 
-            if len(number) > 1:
-                number_standart = number
-                number = []
+                spisok_tasks = DbSymbols.task_space.join(spisok_tasks) + DbSymbols.task_space
 
-                for i in number_standart:
-                    i = -((len(DB_TODOLIST) + 1) - int(i))
-                    number.append(i)
-
-                for index in number:
-                    try:
-                        DB_TODOLIST.pop(index)
-                    except:
-                        pass
+                base.execute('UPDATE TableToDo SET spisok = (?) WHERE user_id = (?)', (spisok_tasks, id_user))
+                base.commit()
             else:
-                for index in number:
-                    index = int(index) - 1
-                    DB_TODOLIST.pop(index)
+                await message.answer('Ошибка.')
 
 
-            DB_TODOLIST = DB_SYMBOLS.DB_LIST_PROBEL.join(DB_TODOLIST) + DB_SYMBOLS.DB_LIST_PROBEL
-
-            base.execute('UPDATE ToDoList SET spisok = (?) WHERE user_id = (?)', (DB_TODOLIST, id_user))
-            base.commit()
                 
         except:
             await message.answer('Ошибка.')
 
 
-
 async def sql_done_task(message, number):
     id_user = message.from_user.id
 
+    number = number.split()
+
     try:
-        DB_TODOLIST = cur.execute('SELECT spisok FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
-        for i in DB_TODOLIST:
-            DB_TODOLIST = i
+        spisok_from_db = cur.execute('SELECT spisok FROM TableToDo WHERE user_id = (?)', (id_user,)).fetchone()
+        spisok_tasks = Processing_the_to_do_list(spisok_from_db)
 
-        DB_TODOLIST = DB_TODOLIST.split(DB_SYMBOLS.DB_LIST_PROBEL)
-        while '' in DB_TODOLIST:
-            DB_TODOLIST.remove('')
+        if checking_task_selector(number):
+            if len(number) > 1:
+                number_standart = number
+                number = []
 
-        number = number.split(' ')
+                for i in number_standart:
+                    i = -((len(spisok_tasks) + 1) - int(i))
+                    number.append(i)
 
-        while '' in number:
-            number.remove('')
+                for index in number:
+                    try:
+                        spisok_tasks[index] = spisok_tasks[index].replace(DbSymbols.db_task_not_done, DbSymbols.db_task_done)
+                    except:
+                        pass
+            else:
+                for index in number:
+                    index = int(index) - 1
+                    spisok_tasks[index] = spisok_tasks[index].replace(DbSymbols.db_task_not_done, DbSymbols.db_task_done)
 
-        for num in number:
-            if num not in list("1234567890"):
-                for i in num:
-                    if i not in list("1234567890"):
-                        return await message.anwer('Ошибка.')
-            
-        if len(number) > 1:
-            number_standart = number
-            number = []
+            spisok_tasks = DbSymbols.task_space.join(spisok_tasks) + DbSymbols.task_space
+            base.execute('UPDATE TableToDo SET spisok = (?) WHERE user_id = (?)', (spisok_tasks, id_user))
+            base.commit()
 
-            for i in number_standart:
-                i = -((len(DB_TODOLIST) + 1) - int(i))
-                number.append(i)
-
-            for index in number:
-                try:
-                    DB_TODOLIST[index] = DB_TODOLIST[index].replace(DB_SYMBOLS.DB_TASK_NOTDONE, DB_SYMBOLS.DB_TASK_DONE)
-                except:
-                    pass
-        else:
-            for index in number:
-                index = int(index) - 1
-                DB_TODOLIST[index] = DB_TODOLIST[index].replace(DB_SYMBOLS.DB_TASK_NOTDONE, DB_SYMBOLS.DB_TASK_DONE)
-
-        DB_TODOLIST = DB_SYMBOLS.DB_LIST_PROBEL.join(DB_TODOLIST) + DB_SYMBOLS.DB_LIST_PROBEL
-        base.execute('UPDATE ToDoList SET spisok = (?) WHERE user_id = (?)', (DB_TODOLIST, id_user))
-        base.commit()
-
-        completed_tasks_db = cur.execute('SELECT completed_tasks FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
-        for completed_tasks in completed_tasks_db:
-            if completed_tasks != None:
+            completed_tasks = cur.execute('SELECT completed_tasks FROM TableToDo WHERE user_id = (?)', (id_user,)).fetchone()
+            completed_tasks = Checking_for_emptiness(completed_tasks)
+            if completed_tasks:
                 completed_tasks += 1
             else:
                 completed_tasks = 1
 
-        base.execute('UPDATE ToDOList SET completed_tasks = (?) WHERE user_id = (?)', (completed_tasks, id_user))
-        base.commit()
+            base.execute('UPDATE TableToDo SET completed_tasks = (?) WHERE user_id = (?)', (completed_tasks, id_user))
+            base.commit()
 
+        else:
+            await message.answer('Ошибка.')
 
     except:
         await message.answer('Ошибка.')
 
 
-
 async def sql_statistics_tasks(message):
     id_user = message.from_user.id
 
-    completed_tasks_db = cur.execute('SELECT completed_tasks FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
-    for completed_tasks in completed_tasks_db:
-        if completed_tasks != None:
-            completed_tasks = completed_tasks
+    completed_tasks_db = cur.execute('SELECT completed_tasks FROM TableToDo WHERE user_id = (?)', (id_user,)).fetchone()
+    completed_tasks = Checking_for_emptiness(completed_tasks_db)
+    if completed_tasks:
+        completed_tasks = completed_tasks
+    else:
+        completed_tasks = 0
 
-    tasks_db = cur.execute('SELECT tasks FROM ToDoList WHERE user_id = (?)', (id_user,)).fetchone()
-    for tasks in tasks_db:
-        if tasks != None:
-            tasks = tasks
+    total_tasks_db = cur.execute('SELECT total_tasks FROM TableToDo WHERE user_id = (?)', (id_user,)).fetchone()
+    total_tasks = Checking_for_emptiness(total_tasks_db)
+    if total_tasks:
+        total_tasks = total_tasks
+    else:
+        total_tasks = 0
 
     try:
-        ratio = (completed_tasks / tasks) * 100
-        await message.answer(f"Всего выполненных задач: <b>{completed_tasks}</b>\nВсего было добавлено задач: <b>{tasks}</b>\nПродуктивность: <b>{ratio}%</b>", parse_mode = types.ParseMode.HTML)
+        ratio = round((completed_tasks / total_tasks) * 100)
+        await message.answer(f"Всего выполненных задач: {completed_tasks}\nВсего было добавлено задач: {total_tasks}\nПродуктивность: {ratio}%")
     except:
-        await message.answer(f"Всего выполненных задач: <b>{completed_tasks}</b>\nВсего было добавлено задач: <b>{tasks}</b>", parse_mode = types.ParseMode.HTML)
+        await message.answer(f"Всего выполненных задач: {completed_tasks}\nВсего было добавлено задач: {total_tasks}")
