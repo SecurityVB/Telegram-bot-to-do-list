@@ -28,17 +28,15 @@ def Preparing_spisok_tasks_for_display(spisok_tasks):
             show_spisok_tasks += f'<b>{spisok_tasks.index(task) + 1})</b> <s>{task_done}</s>\n'
     return show_spisok_tasks
 
+
 def checking_task_selector(number):
-    if isinstance(number, list):
-        for num in number:
-            try:
-                num = int(num)
-                if num < 0:
-                    return False
-                else:
-                    return True
-            except:
-                return False
+    number = tuple(number)
+    for i in number:
+        if i not in "0123456789":
+            return False
+    return True
+
+    
     elif isinstance(number, int):
         try:
             number = int(number)
@@ -50,6 +48,7 @@ def checking_task_selector(number):
             return False
     else:
         return False
+
 
 def Checking_for_emptiness(db_element):
     for i in db_element:
